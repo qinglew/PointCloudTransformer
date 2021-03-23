@@ -1,6 +1,6 @@
 # Point Cloud Transformer
 
-![](pct.png)
+![](img/pct.png)
 
 ## Description
 
