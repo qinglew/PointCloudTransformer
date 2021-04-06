@@ -14,7 +14,12 @@ from dataset import ModelNet40
 from model import NaivePCTCls, SPCTCls, PCTCls, AAPCTCls2
 from util import cal_loss, Logger
 
-models = {'navie_pct': NaivePCTCls, 'spct': SPCTCls, 'pct': PCTCls, 'att_agg_pct': AAPCTCls2}
+models = {
+    'navie_pct': NaivePCTCls,
+    'spct': SPCTCls,
+    'pct': PCTCls,
+    'att_agg_pct': AAPCTCls2
+}
 
 
 def _init_(args):
@@ -30,16 +35,16 @@ def train(args, io):
     # dataset loader
     train_loader = DataLoader(ModelNet40(partition='train',
                                          num_points=args.num_points),
-                              num_workers=8,
-                              batch_size=args.batch_size,
-                              shuffle=True,
-                              drop_last=True)
+                                         num_workers=2,
+                                         batch_size=args.batch_size,
+                                         shuffle=True,
+                                         drop_last=True)
     test_loader = DataLoader(ModelNet40(partition='test',
                                         num_points=args.num_points),
-                             num_workers=8,
-                             batch_size=args.test_batch_size,
-                             shuffle=True,
-                             drop_last=False)
+                                        num_workers=2,
+                                        batch_size=args.test_batch_size,
+                                        shuffle=True,
+                                        drop_last=False)
     device = torch.device("cuda" if args.cuda else "cpu")
     # model
     model = models[args.model]().to(device)
@@ -137,8 +142,10 @@ def train(args, io):
         if test_acc >= best_test_acc:
             best_test_acc = test_acc
             best_epoch = epoch + 1
-            torch.save(model.state_dict(),
-                       os.path.join(args.root, args.model, 'checkpoints/best_model.pth'))
+            torch.save(
+                model.state_dict(),
+                os.path.join(args.root, args.model,
+                             'checkpoints/best_model.pth'))
 
         scheduler.step()
 
