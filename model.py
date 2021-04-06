@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -100,15 +101,51 @@ class PCT(nn.Module):
         x3 = self.oa3(x2)
         x4 = self.oa4(x3)
 
-        x = torch.cat([x, x1, x2, x3, x4], dim=1)
+        x = torch.cat([x, x1, x2, x3, x4], dim=1)  # (B, 1280, 256)
 
-        x = self.linear(x)
+        x = self.linear(x)  # (B, 1024, 256)
 
         # x = F.adaptive_max_pool1d(x, 1).view(batch_size, -1)
         x_max = torch.max(x, dim=-1)[0]
         x_mean = torch.mean(x, dim=-1)
 
         return x, x_max, x_mean
+
+
+class AttentionAggregation(nn.Module):
+    def __init__(self, d_in, d_k, d_v):
+        super(AttentionAggregation, self).__init__()
+        self.d_in = d_in
+        self.d_k = d_k
+        self.d_v = d_v
+        
+        self.q_conv = nn.Conv1d(d_in, d_k, 1, bias=False)
+        self.k_conv = nn.Conv1d(d_in, d_k, 1, bias=False)
+        self.q_conv.weight = self.k_conv.weight
+        self.v_conv = nn.Conv1d(d_in, d_v, 1)
+
+        self.linear_trans = nn.Conv1d(d_v, d_v, 1)
+        self.bn = nn.BatchNorm1d(d_v)
+
+    def forward(self, x):
+        max_feature = torch.max(x, dim=2, keepdim=True)[0].to(x.device)  # (B, d_in, 1)
+        # global_feature = torch.ones(x.size(0), x.size(1), 1).to(x.device)
+        x_q = self.q_conv(max_feature).permute(0, 2, 1)     # (B, 1, d_k)
+        x_k = self.k_conv(x)                                # (B, d_k, N)
+        x_v = self.v_conv(x)                                # (B, d_v, N)
+
+        energy = torch.bmm(x_q, x_k) / (math.sqrt(self.d_k))  # (B, 1, N)
+        attention = F.softmax(energy, dim=-1)                 # (B, 1, N)
+
+        x_s = torch.bmm(attention, x_v.permute(0, 2, 1)).permute(0, 2 ,1)  # (B, d_v, 1)
+        x_s = F.relu(self.bn(self.linear_trans(x_s)))         # (B, d_v, 1)
+
+        # resudual connection, it need d_in == d_v
+        x_s = x_s + max_feature
+
+        x_s = x_s.view(x.size(0), -1)
+
+        return x_s
 
 
 class Classification(nn.Module):
@@ -246,6 +283,23 @@ class PCTCls(nn.Module):
         return x
 
 
+class AAPCTCls(nn.Module):
+    def __init__(self, num_categories=40):
+        super().__init__()
+
+        self.encoder = PCT()
+        self.agg = AttentionAggregation(1024, 1024 // 4, 1024)
+        self.cls = Classification(num_categories)
+    
+    def forward(self, x):
+        x, _, _ = self.encoder(x)
+        print(x.size())
+        x = self.agg(x)
+        print(x.size())
+        x = self.cls(x)
+        return x
+
+
 """
 Part Segmentation Networks.
 """
@@ -334,31 +388,6 @@ class PCTNormalEstimation(nn.Module):
 
 if __name__ == '__main__':
     pc = torch.rand(4, 3, 1024).to('cuda')
-    cls_label = torch.rand(4, 16).to('cuda')
-
-    # testing for cls networks
-    naive_pct_cls = NaivePCTCls().to('cuda')
-    spct_cls = SPCTCls().to('cuda')
-    pct_cls = PCTCls().to('cuda')
-
-    print(naive_pct_cls(pc).size())
-    print(spct_cls(pc).size())
-    print(pct_cls(pc).size())
-
-    # testing for segmentation networks
-    naive_pct_seg = NaivePCTSeg().to('cuda')
-    spct_seg = SPCTSeg().to('cuda')
-    pct_seg = PCTSeg().to('cuda')
-
-    print(naive_pct_seg(pc, cls_label).size())
-    print(spct_seg(pc, cls_label).size())
-    print(pct_seg(pc, cls_label).size())
-
-    # testing for normal estimation networks
-    naive_pct_ne = NaivePCTNormalEstimation().to('cuda')
-    spct_ne = SPCTNormalEstimation().to('cuda')
-    pct_ne = PCTNormalEstimation().to('cuda')
-
-    print(naive_pct_ne(pc).size())
-    print(spct_ne(pc).size())
-    print(pct_ne(pc).size())
+    net = AAPCTCls().to('cuda')
+    x = net(pc)
+    print(x.size())
