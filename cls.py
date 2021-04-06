@@ -129,7 +129,6 @@ def train(args, io):
             test_loss += loss.item() * batch_size
             test_true.append(label.cpu().numpy())
             test_pred.append(preds.detach().cpu().numpy())
-        print('test total time is', total_time)
         test_true = np.concatenate(test_true)
         test_pred = np.concatenate(test_pred)
         test_acc = metrics.accuracy_score(test_true, test_pred)
