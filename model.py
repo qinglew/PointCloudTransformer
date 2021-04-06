@@ -112,8 +112,38 @@ class PCT(nn.Module):
         return x, x_max, x_mean
 
 
+class PCT2(nn.Module):
+    def __init__(self, samples=[512, 256]):
+        super().__init__()
+
+        self.neighbor_embedding = NeighborEmbedding(samples)
+        
+        self.oa1 = OA(256)
+        self.oa2 = OA(256)
+        self.oa3 = OA(256)
+        self.oa4 = OA(256)
+
+        # self.linear = nn.Sequential(
+        #     nn.Conv1d(1280, 1024, kernel_size=1, bias=False),
+        #     nn.BatchNorm1d(1024),
+        #     nn.LeakyReLU(negative_slope=0.2)
+        # )
+
+    def forward(self, x):
+        x = self.neighbor_embedding(x)
+
+        x1 = self.oa1(x)
+        x2 = self.oa2(x1)
+        x3 = self.oa3(x2)
+        x4 = self.oa4(x3)
+
+        x = torch.cat([x, x1, x2, x3, x4], dim=1)  # (B, 1280, 256)
+
+        return x
+
+
 class AttentionAggregation(nn.Module):
-    def __init__(self, d_in, d_k, d_v):
+    def __init__(self, d_in, d_k, d_v, d_g):
         super(AttentionAggregation, self).__init__()
         self.d_in = d_in
         self.d_k = d_k
@@ -124,8 +154,8 @@ class AttentionAggregation(nn.Module):
         self.q_conv.weight = self.k_conv.weight
         self.v_conv = nn.Conv1d(d_in, d_v, 1)
 
-        self.linear_trans = nn.Conv1d(d_v, d_v, 1)
-        self.bn = nn.BatchNorm1d(d_v)
+        self.linear_trans = nn.Conv1d(d_v, d_g, 1)
+        self.bn = nn.BatchNorm1d(d_g)
 
     def forward(self, x):
         max_feature = torch.max(x, dim=2, keepdim=True)[0].to(x.device)  # (B, d_in, 1)
@@ -138,10 +168,10 @@ class AttentionAggregation(nn.Module):
         attention = F.softmax(energy, dim=-1)                 # (B, 1, N)
 
         x_s = torch.bmm(attention, x_v.permute(0, 2, 1)).permute(0, 2 ,1)  # (B, d_v, 1)
-        x_s = F.relu(self.bn(self.linear_trans(x_s)))         # (B, d_v, 1)
-
         # resudual connection, it need d_in == d_v
         x_s = x_s + max_feature
+
+        x_s = F.leaky_relu(self.bn(self.linear_trans(x_s)), negative_slope=0.2)         # (B, d_g, 1)
 
         x_s = x_s.view(x.size(0), -1)
 
@@ -283,16 +313,16 @@ class PCTCls(nn.Module):
         return x
 
 
-class AAPCTCls(nn.Module):
+class AAPCTCls2(nn.Module):
     def __init__(self, num_categories=40):
         super().__init__()
 
-        self.encoder = PCT()
-        self.agg = AttentionAggregation(1024, 1024 // 4, 1024)
+        self.encoder = PCT2()
+        self.agg = AttentionAggregation(1280, 1280 // 4, 1280, 1024)
         self.cls = Classification(num_categories)
     
     def forward(self, x):
-        x, _, _ = self.encoder(x)
+        x = self.encoder(x)
         print(x.size())
         x = self.agg(x)
         print(x.size())
@@ -388,6 +418,6 @@ class PCTNormalEstimation(nn.Module):
 
 if __name__ == '__main__':
     pc = torch.rand(4, 3, 1024).to('cuda')
-    net = AAPCTCls().to('cuda')
+    net = AAPCTCls2().to('cuda')
     x = net(pc)
     print(x.size())

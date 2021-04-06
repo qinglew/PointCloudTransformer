@@ -11,10 +11,10 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from dataset import ModelNet40
-from model import NaivePCTCls, SPCTCls, PCTCls, AAPCTCls
+from model import NaivePCTCls, SPCTCls, PCTCls, AAPCTCls2
 from util import cal_loss, Logger
 
-models = {'navie_pct': NaivePCTCls, 'spct': SPCTCls, 'pct': PCTCls, 'att_agg_pct': AAPCTCls}
+models = {'navie_pct': NaivePCTCls, 'spct': SPCTCls, 'pct': PCTCls, 'att_agg_pct': AAPCTCls2}
 
 
 def _init_(args):
