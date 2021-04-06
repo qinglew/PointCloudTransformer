@@ -293,9 +293,7 @@ class AAPCTCls(nn.Module):
     
     def forward(self, x):
         x, _, _ = self.encoder(x)
-        print(x.size())
         x = self.agg(x)
-        print(x.size())
         x = self.cls(x)
         return x
 
