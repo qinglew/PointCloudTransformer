@@ -19,7 +19,7 @@ def download():
 
 
 def load_data(partition):
-    download()
+    # download()
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     DATA_DIR = os.path.join(BASE_DIR, 'data')  # you can modify here to assign the path where dataset's root located at
     all_data = []

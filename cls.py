@@ -38,10 +38,12 @@ def train(args, io):
                                         batch_size=args.test_batch_size,
                                         shuffle=True,
                                         drop_last=False)
+    print("\033[33mData Prepared...\033[0m")
     device = torch.device("cuda" if args.cuda else "cpu")
     # model
     model = MLA().to(device)
     model = nn.DataParallel(model)
+    print("\033[33mModel initialized...\033[0m")
     # optimizer
     if args.use_sgd:
         print("Use SGD")
@@ -62,6 +64,9 @@ def train(args, io):
     """
     Training
     """
+
+    print("Begin training...")
+
     for epoch in range(args.epochs):
         train_loss = 0.0
         count = 0.0  # numbers of data
@@ -73,14 +78,18 @@ def train(args, io):
         for data, label in (train_loader):
             data, label = data.to(device), label.to(device).squeeze()
             data = data.permute(0, 2, 1)
+            # print('data batch')
             batch_size = data.size()[0]
             opt.zero_grad()
 
             start_time = time.time()
             logits = model(data)
+            # print('forward')
             loss = criterion(logits, label)
             loss.backward()
+            # print('backward')
             opt.step()
+            # print('update parameters')
             end_time = time.time()
             total_time += (end_time - start_time)
 
