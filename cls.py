@@ -11,15 +11,8 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from dataset import ModelNet40
-from model import NaivePCTCls, SPCTCls, PCTCls, AAPCTCls2
+from model import MLA
 from util import cal_loss, Logger
-
-models = {
-    'navie_pct': NaivePCTCls,
-    'spct': SPCTCls,
-    'pct': PCTCls,
-    'att_agg_pct': AAPCTCls2
-}
 
 
 def _init_(args):
@@ -47,7 +40,7 @@ def train(args, io):
                                         drop_last=False)
     device = torch.device("cuda" if args.cuda else "cpu")
     # model
-    model = models[args.model]().to(device)
+    model = MLA().to(device)
     model = nn.DataParallel(model)
     # optimizer
     if args.use_sgd:
@@ -160,7 +153,7 @@ def test(args, io):
 
     device = torch.device("cuda" if args.cuda else "cpu")
 
-    model = models[args.model]().to(device)
+    model = MLA().to(device)
     model = nn.DataParallel(model)
 
     model.load_state_dict(torch.load(args.model_path))
@@ -188,72 +181,21 @@ def test(args, io):
 if __name__ == "__main__":
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
-    parser.add_argument('--root',
-                        type=str,
-                        default='/content/drive/MyDrive/PCT')
-    parser.add_argument('--model',
-                        type=str,
-                        default='pct',
-                        choices=['navie_pct', 'spct', 'pct'],
-                        help='which model you want to use')
-    parser.add_argument('--dataset',
-                        type=str,
-                        default='modelnet40',
-                        metavar='N',
-                        choices=['modelnet40'])
-    parser.add_argument('--batch_size',
-                        type=int,
-                        default=32,
-                        metavar='batch_size',
-                        help='Size of batch)')
-    parser.add_argument('--test_batch_size',
-                        type=int,
-                        default=16,
-                        metavar='batch_size',
-                        help='Size of batch)')
-    parser.add_argument('--epochs',
-                        type=int,
-                        default=250,
-                        metavar='N',
-                        help='number of episode to train ')
+    parser.add_argument('--root', type=str, default='/content/drive/MyDrive/MLA')
+    parser.add_argument('--model', type=str, default='MLA', help='which model you want to use')
+    parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N', choices=['modelnet40'])
+    parser.add_argument('--batch_size', type=int, default=32, metavar='batch_size', help='Size of batch)')
+    parser.add_argument('--test_batch_size', type=int, default=16, metavar='batch_size', help='Size of batch)')
+    parser.add_argument('--epochs', type=int, default=250, metavar='N', help='number of episode to train ')
     parser.add_argument('--use_sgd', type=bool, default=True, help='Use SGD')
-    parser.add_argument(
-        '--lr',
-        type=float,
-        default=0.0001,
-        metavar='LR',
-        help='learning rate (default: 0.001, 0.1 if using sgd)')
-    parser.add_argument('--momentum',
-                        type=float,
-                        default=0.9,
-                        metavar='M',
-                        help='SGD momentum (default: 0.9)')
-    parser.add_argument('--no_cuda',
-                        type=bool,
-                        default=False,
-                        help='enables CUDA training')
-    parser.add_argument('--seed',
-                        type=int,
-                        default=1,
-                        metavar='S',
-                        help='random seed (default: 1)')
-    parser.add_argument('--eval',
-                        type=bool,
-                        default=False,
-                        help='evaluate the model')
-    parser.add_argument('--num_points',
-                        type=int,
-                        default=1024,
-                        help='num of points to use')
-    parser.add_argument('--dropout',
-                        type=float,
-                        default=0.5,
-                        help='dropout rate')
-    parser.add_argument('--model_path',
-                        type=str,
-                        default='',
-                        metavar='N',
-                        help='Pretrained model path')
+    parser.add_argument('--lr', type=float, default=0.0001, metavar='LR', help='learning rate (default: 0.001, 0.1 if using sgd)')
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
+    parser.add_argument('--no_cuda', type=bool, default=False, help='enables CUDA training')
+    parser.add_argument('--seed', type=int,default=1,metavar='S',help='random seed (default: 1)')
+    parser.add_argument('--eval',type=bool,default=False,help='evaluate the model')
+    parser.add_argument('--num_points',type=int, default=1024, help='num of points to use')
+    parser.add_argument('--dropout', type=float, default=0.5, help='dropout rate')
+    parser.add_argument('--model_path', type=str, default='', metavar='N', help='Pretrained model path')
     args = parser.parse_args()
 
     _init_(args)
