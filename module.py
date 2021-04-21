@@ -133,10 +133,7 @@ class SA(nn.Module):
         x_s = torch.bmm(x_v, attention)  # [B, de, N]
         x_s = self.act(self.after_norm(self.trans_conv(x_s)))
         
-        # residual
-        x = x + x_s
-
-        return x
+        return x_s
 
 
 class OA(nn.Module):
@@ -217,15 +214,34 @@ class ChannelAttention(nn.Module):
         # TODO: use a linear transformation
         # x_s = self.linear_trans(x_s)
 
-        # residual
-        x = x + x_s
+        return x_s
 
+
+class DoubleAttention(nn.Module):
+    def __init__(self, channels):
+        super(DoubleAttention, self).__init__()
+    
+        self.conv1 = nn.Conv1d(channels, channels // 4, 1)
+        self.conv2 = nn.Conv1d(channels, channels // 4, 1)
+        self.softmax = nn.Softmax()
+
+        self.conv = nn.Conv1d(channels // 4, channels, 1)
+        self.bn = nn.BatchNorm1d(channels)
+
+    def forward(self, x):
+        x1 = self.conv1(x)
+        x2 = self.softmax(self.conv2(x)).permute(0, 2, 1)
+        x3 = self.softmax(self.conv3(x))
+        atten1 = torch.bmm(x1, x2)
+        atten2 = torch.bmm(atten1, x3)
+        x = F.relu(self.bn(self.conv(atten2)))
         return x
 
 
 class MultiLevelAttention(nn.Module):
     def __init__(self):
         super(MultiLevelAttention, self).__init__()
+        
         self.sa = SA(512)
         self.ca = ChannelAttention(512)
         self.linear = nn.Sequential(
@@ -237,7 +253,7 @@ class MultiLevelAttention(nn.Module):
     def forward(self, x):
         x1 = self.sa(x)
         x2 = self.ca(x)
-        x = x1 + x2
+        x =  x + x1 + x2
         x = self.linear(x)
         return x
 

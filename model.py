@@ -11,18 +11,15 @@ class MLA(nn.Module):
         super(MLA, self).__init__()
         
         self.embedding = NeighborEmbedding()
-        # self.mla = MultiLevelAttention()
-        self.conv1 = nn.Conv1d(512, 1024, 1)
+        self.mla = MultiLevelAttention()
         self.decoder = Classification()
     
     def forward(self, x):
         x = self.embedding(x)
-        # x = self.mla(x)
-        x = self.conv1(x)
+        x = self.mla(x)
         x = torch.max(x, dim=-1)[0]
         x = self.decoder(x)
         return x
-
 
 
 if __name__ == '__main__':
