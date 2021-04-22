@@ -11,8 +11,14 @@ from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from dataset import ModelNet40
-from model import MLA
+from model import Baseline1, Baseline2, MLA1, MLA2
 from util import cal_loss, Logger
+
+
+models = {'baseline1': Baseline1,
+          'baseline2': Baseline2,
+          'MLA1': MLA1,
+          'MLA2': MLA2}
 
 
 def _init_(args):
@@ -41,7 +47,7 @@ def train(args, io):
     print("\033[33mData Prepared...\033[0m")
     device = torch.device("cuda" if args.cuda else "cpu")
     # model
-    model = MLA().to(device)
+    model = models[args.model].to(device)
     model = nn.DataParallel(model)
     print("\033[33mModel initialized...\033[0m")
     # optimizer
@@ -162,7 +168,7 @@ def test(args, io):
 
     device = torch.device("cuda" if args.cuda else "cpu")
 
-    model = MLA().to(device)
+    model = models[args.model].to(device)
     model = nn.DataParallel(model)
 
     model.load_state_dict(torch.load(args.model_path))
@@ -191,7 +197,7 @@ if __name__ == "__main__":
     # Training settings
     parser = argparse.ArgumentParser(description='Point Cloud Recognition')
     parser.add_argument('--root', type=str, default='/content/drive/MyDrive/MLA')
-    parser.add_argument('--model', type=str, default='MLA', help='which model you want to use')
+    parser.add_argument('--model', type=str, default='Baseline1', help='which model you want to use')
     parser.add_argument('--dataset', type=str, default='modelnet40', metavar='N', choices=['modelnet40'])
     parser.add_argument('--batch_size', type=int, default=32, metavar='batch_size', help='Size of batch)')
     parser.add_argument('--test_batch_size', type=int, default=16, metavar='batch_size', help='Size of batch)')
